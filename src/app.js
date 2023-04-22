@@ -7,11 +7,11 @@ const port = process.env.PORT || 3000
 app.use(express.json())
 
 // Landing Page for the webservice
-app.get('/', (req,res)=>res.send('Landing Route for webservice'))
+app.get('/', (req,res)=>res.send('Landing Route for Mirth API Webservice'))
 
-//Routing /api requests to the api router
-const apiRoutes = require('./routes/api-routes')
-app.use('/api', apiRoutes)
+//Routing /api/channels requests to the channels router
+const apiRoutes = require('./routes/channels')
+app.use('/api/channels', apiRoutes)
 
 //Routing to Swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
@@ -24,5 +24,5 @@ app.use((req, res, next) => {
   })
 
 app.listen(port, ()=>{
-    console.log(`Webservice listening in port ${port}`)
+    console.log(`Mirth API webservice listening in port ${port}`)
 })

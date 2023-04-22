@@ -1,0 +1,6 @@
+{
+    "mirth": {
+        "dev": "https://127.0.0.1:8443",
+        "prod": "https://mirth-connect"
+    }
+}
