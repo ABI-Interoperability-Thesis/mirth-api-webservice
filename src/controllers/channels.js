@@ -4,7 +4,7 @@ const token_utils = require('../config/token')
 const endpoints = require('../config/endpoints.json')
 const {GenerateChannel} = require('../utils/channel')
 require('dotenv').config();
-
+const {CreateTable} = require('../utils/mysql-ws')
 
 //disable ssl
 const agent = new https.Agent({
@@ -132,6 +132,11 @@ const DeleteChannel = async (req, res) => {
 const CreateChannel = async (req,res) => {
     const {channel_name, channel_port, mappings, model_name} = req.body
 
+    // Creating the table in the DB
+
+    await CreateTable(model_name, mappings)
+
+    // Creating the Channel in Mirth
     const headers = {
         'X-Requested-With': 'OpenAPI',
         'Accept': 'application/json',
@@ -139,6 +144,8 @@ const CreateChannel = async (req,res) => {
         'Content-Type': 'application/json'
     };
 
+
+    // Generating the Channel
     const data = GenerateChannel(channel_name, channel_port, mappings, model_name)
 
     const config = {

@@ -1,6 +1,10 @@
 {
     "mirth": {
         "dev": "https://127.0.0.1:8443",
-        "prod": "https://mirth-connect"
+        "prod": "https://mirth-connect:8443"
+    },
+    "mysql_ws": {
+        "dev": "http://127.0.0.1:3002",
+        "prod": "http://mysql-webservice:3000"
     }
 }

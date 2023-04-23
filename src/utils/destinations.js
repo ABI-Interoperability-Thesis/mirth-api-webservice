@@ -945,6 +945,8 @@ const GenerateDestinationSendDataDB = (mappings, model_name, table_name) => {
 }
 
 const generateDBQuery = (mappings, model_name, table_name) => {
+    const mappings_names = mappings.map((mapping) => { return mapping.name })
+    const sql_question_marks = GenerateSQLQM(mappings)
     const new_query = `// Query Auto Generated
     var dbConn;
     const req_obj = JSON.parse(globalMap.get('${model_name}'))
@@ -961,7 +963,7 @@ const generateDBQuery = (mappings, model_name, table_name) => {
         dbConn = DatabaseConnectionFactory.createDatabaseConnection('com.mysql.cj.jdbc.Driver','jdbc:mysql://mysql-container:3306/abi-metadata','admin','admin');
 
         // Inserting new record in model_1_data table
-        var result_model_table = dbConn.executeUpdate("INSERT INTO ${table_name} (data_id, urg_episodio, hora_admissao, cod_causa, cod_proveniencia, cod_prioridade, idade, cod_via_verde, sexo, cod_concelho, afluencia, hora_discharge) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", req_obj_array);
+        var result_model_table = dbConn.executeUpdate("INSERT INTO ${table_name} (data_id, ${mappings_names}) VALUES (${sql_question_marks})", req_obj_array);
 
         // Linking new model_1_data request to a state
         var result_req_table = dbConn.executeUpdate("INSERT INTO client_requests (model_data_id, request_type, client_id) VALUES (?,?,?)", [uuid, '${table_name}', 123]);
@@ -981,6 +983,15 @@ const generateDBQuery = (mappings, model_name, table_name) => {
     }
     `
     return new_query
+}
+
+const GenerateSQLQM = (mappings) => {
+    let qm = []
+    const iter_times = mappings.length + 1
+    for (let i = 0; i < iter_times; i++) {
+        qm.push('?')
+    }
+    return qm
 }
 
 const GenerateSQLArray = (mappings) => {
@@ -1026,7 +1037,7 @@ const GenerateDestinationSendDataMQ = (model_name) => {
                 "queueBufferSize": 1000,
                 "reattachAttachments": true
             },
-            "host": "http://message-queue-webservice:3000/data",
+            "host": "http://message-queue-webservice:3000/api/rabbitmq/message",
             "useProxyServer": false,
             "proxyAddress": null,
             "proxyPort": null,
