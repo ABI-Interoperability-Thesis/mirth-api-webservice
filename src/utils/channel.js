@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const {GenerateDeployScript} = require('./scripts')
-const {GenerateDestinationHL7Extraction, GenerateDestinationBatchValidation, GenerateDestinationSendDataDB, GenerateDestinationSendDataMQ, GenerateDestinationSendResponse} = require('./destinations')
+const {GenerateDestinationHL7Extraction, GenerateDestinationBatchValidation, GenerateDestinationSendDataDB, GenerateDestinationSendDataMQ, GenerateDestinationSendResponse, GenerateDestinationRequestPreparation} = require('./destinations')
 
 
 const GenerateChannel = (channel_name, channel_port, mappings, model_name) => {
@@ -13,6 +13,7 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name) => {
     const SendDataDBDestination = GenerateDestinationSendDataDB(mappings, model_name, table_name)
     const SendDataMQDestination = GenerateDestinationSendDataMQ(model_name)
     const SendResponseDestination = GenerateDestinationSendResponse(model_name)
+    const RequestPreparationDestination = GenerateDestinationRequestPreparation(table_name, model_name)
     const channel_data = JSON.stringify(
         {
             "channel": {
@@ -203,6 +204,7 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name) => {
                     "connector": [
                         HL7Destination,
                         BatchValidationDestination,
+                        RequestPreparationDestination,
                         SendDataDBDestination,
                         SendDataMQDestination,
                         SendResponseDestination

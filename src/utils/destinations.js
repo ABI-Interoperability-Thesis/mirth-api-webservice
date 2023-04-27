@@ -661,13 +661,13 @@ const GenerateFieldValidation = (mappings) => {
     return validations
 }
 
-const GenerateDestinationSendDataDB = (mappings, model_name, table_name) => {
+const GenerateDestinationSendDataDB = () => {
     const new_destination = {
         "@version": "4.3.0",
         "metaDataId": 5,
         "name": "Sending Data to DB",
         "properties": {
-            "@class": "com.mirth.connect.connectors.jdbc.DatabaseDispatcherProperties",
+            "@class": "com.mirth.connect.connectors.http.HttpDispatcherProperties",
             "@version": "4.3.0",
             "pluginProperties": null,
             "destinationConnectorProperties": {
@@ -694,17 +694,45 @@ const GenerateDestinationSendDataDB = (mappings, model_name, table_name) => {
                 "queueBufferSize": 1000,
                 "reattachAttachments": true
             },
-            "driver": "com.mysql.cj.jdbc.Driver",
-            "url": "jdbc:mysql://mysql-container:3306/abi-metadata",
-            "username": "admin",
-            "password": "admin",
-            "query": generateDBQuery(mappings, model_name, table_name),
-            "useScript": true
+            "host": "http://mysql-webservice:3000/api/create-request",
+            "useProxyServer": false,
+            "proxyAddress": null,
+            "proxyPort": null,
+            "method": "post",
+            "headers": {
+                "@class": "linked-hash-map"
+            },
+            "parameters": {
+                "@class": "linked-hash-map"
+            },
+            "useHeadersVariable": false,
+            "headersVariable": null,
+            "useParametersVariable": false,
+            "parametersVariable": null,
+            "responseXmlBody": false,
+            "responseParseMultipart": true,
+            "responseIncludeMetadata": false,
+            "responseBinaryMimeTypes": "application/.*(?<!json|xml)$|image/.*|video/.*|audio/.*",
+            "responseBinaryMimeTypesRegex": true,
+            "multipart": false,
+            "useAuthentication": false,
+            "authenticationType": "Basic",
+            "usePreemptiveAuthentication": false,
+            "username": null,
+            "password": null,
+            "content": "${db_req}",
+            "contentType": "application/json",
+            "dataTypeBinary": false,
+            "charset": "UTF-8",
+            "socketTimeout": 30000
         },
         "transformer": {
             "@version": "4.3.0",
             "elements": null,
             "inboundTemplate": {
+                "@encoding": "base64"
+            },
+            "outboundTemplate": {
                 "@encoding": "base64"
             },
             "inboundDataType": "HL7V2",
@@ -936,72 +964,12 @@ const GenerateDestinationSendDataDB = (mappings, model_name, table_name) => {
                 }
             }
         },
-        "transportName": "Database Writer",
+        "transportName": "HTTP Sender",
         "mode": "DESTINATION",
         "enabled": true,
         "waitForPrevious": true
     }
     return new_destination
-}
-
-const generateDBQuery = (mappings, model_name, table_name) => {
-    const mappings_names = mappings.map((mapping) => { return mapping.name })
-    const sql_question_marks = GenerateSQLQM(mappings)
-    const new_query = `// Query Auto Generated
-    var dbConn;
-    const req_obj = JSON.parse(globalMap.get('${model_name}'))
-
-    // Generating unique ID
-    const uuid = UUIDGenerator.getUUID();
-
-    // Building array for DB insertion
-    const req_obj_array = [${GenerateSQLArray(mappings)}]
-
-    try {
-
-        // Database Connection
-        dbConn = DatabaseConnectionFactory.createDatabaseConnection('com.mysql.cj.jdbc.Driver','jdbc:mysql://mysql-container:3306/abi-metadata','admin','admin');
-
-        // Inserting new record in model_1_data table
-        var result_model_table = dbConn.executeUpdate("INSERT INTO ${table_name} (data_id, ${mappings_names}) VALUES (${sql_question_marks})", req_obj_array);
-
-        // Linking new model_1_data request to a state
-        var result_req_table = dbConn.executeUpdate("INSERT INTO client_requests (model_data_id, request_type, client_id) VALUES (?,?,?)", [uuid, '${table_name}', 123]);
-
-        // Updating global data object with uuid for request identification
-        req_obj['req_id'] = uuid
-
-        // Updating global data object with requested model
-        req_obj['req_model'] = '${table_name}'
-        globalMap.put('${model_name}', JSON.stringify(req_obj))
-
-
-    } finally {
-        if (dbConn) { 
-            dbConn.close();
-        }
-    }
-    `
-    return new_query
-}
-
-const GenerateSQLQM = (mappings) => {
-    let qm = []
-    const iter_times = mappings.length + 1
-    for (let i = 0; i < iter_times; i++) {
-        qm.push('?')
-    }
-    return qm
-}
-
-const GenerateSQLArray = (mappings) => {
-    let sql_array = ['uuid']
-    for (let i = 0; i < mappings.length; i++) {
-        const mapping = mappings[i];
-        const new_item = `req_obj['${mapping.name}']\n`
-        sql_array.push(new_item)
-    }
-    return sql_array
 }
 
 const GenerateDestinationSendDataMQ = (model_name) => {
@@ -1593,11 +1561,314 @@ const GenerateDestinationSendResponse = (model_name) => {
     return new_destination
 }
 
+const GenerateDestinationRequestPreparation = (model_name, table_name) => {
+    const new_destination = {
+        "@version": "4.3.0",
+        "metaDataId": 7,
+        "name": "Request Preparation",
+        "properties": {
+            "@class": "com.mirth.connect.connectors.js.JavaScriptDispatcherProperties",
+            "@version": "4.3.0",
+            "pluginProperties": null,
+            "destinationConnectorProperties": {
+                "@version": "4.3.0",
+                "queueEnabled": false,
+                "sendFirst": false,
+                "retryIntervalMillis": 10000,
+                "regenerateTemplate": false,
+                "retryCount": 0,
+                "rotate": false,
+                "includeFilterTransformer": false,
+                "threadCount": 1,
+                "threadAssignmentVariable": null,
+                "validateResponse": false,
+                "resourceIds": {
+                    "@class": "linked-hash-map",
+                    "entry": {
+                        "string": [
+                            "Default Resource",
+                            "[Default Resource]"
+                        ]
+                    }
+                },
+                "queueBufferSize": 1000,
+                "reattachAttachments": true
+            },
+            "script": GenerateRequestPreparationScript(model_name, table_name)
+        },
+        "transformer": {
+            "@version": "4.3.0",
+            "elements": null,
+            "inboundTemplate": {
+                "@encoding": "base64"
+            },
+            "inboundDataType": "HL7V2",
+            "outboundDataType": "HL7V2",
+            "inboundProperties": {
+                "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties",
+                "@version": "4.3.0",
+                "serializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties",
+                    "@version": "4.3.0",
+                    "handleRepetitions": true,
+                    "handleSubcomponents": true,
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "stripNamespaces": false,
+                    "segmentDelimiter": "\\r",
+                    "convertLineBreaks": true
+                },
+                "deserializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties",
+                    "@version": "4.3.0",
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "segmentDelimiter": "\\r"
+                },
+                "batchProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties",
+                    "@version": "4.3.0",
+                    "splitType": "MSH_Segment",
+                    "batchScript": null
+                },
+                "responseGenerationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties",
+                    "@version": "4.3.0",
+                    "segmentDelimiter": "\\r",
+                    "successfulACKCode": "AA",
+                    "successfulACKMessage": null,
+                    "errorACKCode": "AE",
+                    "errorACKMessage": "An Error Occurred Processing Message.",
+                    "rejectedACKCode": "AR",
+                    "rejectedACKMessage": "Message Rejected.",
+                    "msh15ACKAccept": false,
+                    "dateFormat": "yyyyMMddHHmmss.SSS"
+                },
+                "responseValidationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties",
+                    "@version": "4.3.0",
+                    "successfulACKCode": "AA,CA",
+                    "errorACKCode": "AE,CE",
+                    "rejectedACKCode": "AR,CR",
+                    "validateMessageControlId": true,
+                    "originalMessageControlId": "Destination_Encoded",
+                    "originalIdMapVariable": null
+                }
+            },
+            "outboundProperties": {
+                "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties",
+                "@version": "4.3.0",
+                "serializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties",
+                    "@version": "4.3.0",
+                    "handleRepetitions": true,
+                    "handleSubcomponents": true,
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "stripNamespaces": false,
+                    "segmentDelimiter": "\\r",
+                    "convertLineBreaks": true
+                },
+                "deserializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties",
+                    "@version": "4.3.0",
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "segmentDelimiter": "\\r"
+                },
+                "batchProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties",
+                    "@version": "4.3.0",
+                    "splitType": "MSH_Segment",
+                    "batchScript": null
+                },
+                "responseGenerationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties",
+                    "@version": "4.3.0",
+                    "segmentDelimiter": "\\r",
+                    "successfulACKCode": "AA",
+                    "successfulACKMessage": null,
+                    "errorACKCode": "AE",
+                    "errorACKMessage": "An Error Occurred Processing Message.",
+                    "rejectedACKCode": "AR",
+                    "rejectedACKMessage": "Message Rejected.",
+                    "msh15ACKAccept": false,
+                    "dateFormat": "yyyyMMddHHmmss.SSS"
+                },
+                "responseValidationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties",
+                    "@version": "4.3.0",
+                    "successfulACKCode": "AA,CA",
+                    "errorACKCode": "AE,CE",
+                    "rejectedACKCode": "AR,CR",
+                    "validateMessageControlId": true,
+                    "originalMessageControlId": "Destination_Encoded",
+                    "originalIdMapVariable": null
+                }
+            }
+        },
+        "responseTransformer": {
+            "@version": "4.3.0",
+            "elements": null,
+            "inboundDataType": "HL7V2",
+            "outboundDataType": "HL7V2",
+            "inboundProperties": {
+                "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties",
+                "@version": "4.3.0",
+                "serializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties",
+                    "@version": "4.3.0",
+                    "handleRepetitions": true,
+                    "handleSubcomponents": true,
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "stripNamespaces": false,
+                    "segmentDelimiter": "\\r",
+                    "convertLineBreaks": true
+                },
+                "deserializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties",
+                    "@version": "4.3.0",
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "segmentDelimiter": "\\r"
+                },
+                "batchProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties",
+                    "@version": "4.3.0",
+                    "splitType": "MSH_Segment",
+                    "batchScript": null
+                },
+                "responseGenerationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties",
+                    "@version": "4.3.0",
+                    "segmentDelimiter": "\\r",
+                    "successfulACKCode": "AA",
+                    "successfulACKMessage": null,
+                    "errorACKCode": "AE",
+                    "errorACKMessage": "An Error Occurred Processing Message.",
+                    "rejectedACKCode": "AR",
+                    "rejectedACKMessage": "Message Rejected.",
+                    "msh15ACKAccept": false,
+                    "dateFormat": "yyyyMMddHHmmss.SSS"
+                },
+                "responseValidationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties",
+                    "@version": "4.3.0",
+                    "successfulACKCode": "AA,CA",
+                    "errorACKCode": "AE,CE",
+                    "rejectedACKCode": "AR,CR",
+                    "validateMessageControlId": true,
+                    "originalMessageControlId": "Destination_Encoded",
+                    "originalIdMapVariable": null
+                }
+            },
+            "outboundProperties": {
+                "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties",
+                "@version": "4.3.0",
+                "serializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties",
+                    "@version": "4.3.0",
+                    "handleRepetitions": true,
+                    "handleSubcomponents": true,
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "stripNamespaces": false,
+                    "segmentDelimiter": "\\r",
+                    "convertLineBreaks": true
+                },
+                "deserializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties",
+                    "@version": "4.3.0",
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "segmentDelimiter": "\\r"
+                },
+                "batchProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties",
+                    "@version": "4.3.0",
+                    "splitType": "MSH_Segment",
+                    "batchScript": null
+                },
+                "responseGenerationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties",
+                    "@version": "4.3.0",
+                    "segmentDelimiter": "\\r",
+                    "successfulACKCode": "AA",
+                    "successfulACKMessage": null,
+                    "errorACKCode": "AE",
+                    "errorACKMessage": "An Error Occurred Processing Message.",
+                    "rejectedACKCode": "AR",
+                    "rejectedACKMessage": "Message Rejected.",
+                    "msh15ACKAccept": false,
+                    "dateFormat": "yyyyMMddHHmmss.SSS"
+                },
+                "responseValidationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties",
+                    "@version": "4.3.0",
+                    "successfulACKCode": "AA,CA",
+                    "errorACKCode": "AE,CE",
+                    "rejectedACKCode": "AR,CR",
+                    "validateMessageControlId": true,
+                    "originalMessageControlId": "Destination_Encoded",
+                    "originalIdMapVariable": null
+                }
+            }
+        },
+        "filter": {
+            "@version": "4.3.0",
+            "elements": {
+                "com.mirth.connect.plugins.rulebuilder.RuleBuilderRule": {
+                    "@version": "4.3.0",
+                    "name": "Accept message if \"$('req_obj_valid')\" equals true",
+                    "sequenceNumber": 0,
+                    "enabled": true,
+                    "field": "$('req_obj_valid')",
+                    "condition": "EQUALS",
+                    "values": {
+                        "string": true
+                    }
+                }
+            }
+        },
+        "transportName": "JavaScript Writer",
+        "mode": "DESTINATION",
+        "enabled": true,
+        "waitForPrevious": true
+    }
+
+    return new_destination
+}
+
+const GenerateRequestPreparationScript = (model_name, table_name) => {
+    const new_script = `// Auto Generated Request Preparation Script
+
+    // Fetching the global object
+    const global_obj = JSON.parse(globalMap.get('${table_name}'))
+
+    // Generating Unique ID
+    var uuid = UUIDGenerator.getUUID();
+
+    global_obj['req_id'] = uuid
+    globalMap.put('${table_name}', JSON.stringify(global_obj))
+
+    var db_req = {
+    table_name: "${model_name}",
+    values: global_obj
+    }
+
+    channelMap.put('db_req', JSON.stringify(db_req))
+    `
+
+    return new_script
+}
+
 
 module.exports = {
     GenerateDestinationHL7Extraction: GenerateDestinationHL7Extraction,
     GenerateDestinationBatchValidation: GenerateDestinationBatchValidation,
     GenerateDestinationSendDataDB: GenerateDestinationSendDataDB,
     GenerateDestinationSendDataMQ: GenerateDestinationSendDataMQ,
-    GenerateDestinationSendResponse: GenerateDestinationSendResponse
+    GenerateDestinationSendResponse: GenerateDestinationSendResponse,
+    GenerateDestinationRequestPreparation: GenerateDestinationRequestPreparation
 }
