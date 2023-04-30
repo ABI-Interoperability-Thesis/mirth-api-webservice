@@ -313,7 +313,7 @@ const GenerateFieldPopulation = (mappings) => {
 const GenerateDestinationBatchValidation = (mappings, model_name) => {
     const new_destination = {
         "@version": "4.3.0",
-        "metaDataId": 3,
+        "metaDataId": 2,
         "name": "Batch Validation",
         "properties": {
             "@class": "com.mirth.connect.connectors.js.JavaScriptDispatcherProperties",
@@ -638,6 +638,12 @@ const GenerateBatchValidationScript = (mappings, model_name) => {
 
     // Setting the final_res channel var
     channelMap.put('final_res', JSON.stringify(final_res))
+
+    // Setting preprocessing object
+    var pre_proc_obj = {
+    	pred_obj: global_obj
+    }
+    channelMap.put('pre_proc_obj', JSON.stringify(pre_proc_obj))
     `
 
     return generatedScript
@@ -975,7 +981,7 @@ const GenerateDestinationSendDataDB = () => {
 const GenerateDestinationSendDataMQ = (model_name) => {
     const new_destination = {
         "@version": "4.3.0",
-        "metaDataId": 4,
+        "metaDataId": 6,
         "name": "Sending Data to MQ",
         "properties": {
             "@class": "com.mirth.connect.connectors.http.HttpDispatcherProperties",
@@ -1031,7 +1037,7 @@ const GenerateDestinationSendDataMQ = (model_name) => {
             "usePreemptiveAuthentication": false,
             "username": null,
             "password": null,
-            "content": "${" + model_name + "}",
+            "content": "${pre_proc_obj}",
             "contentType": "application/json",
             "dataTypeBinary": false,
             "charset": "UTF-8",
@@ -1286,7 +1292,7 @@ const GenerateDestinationSendDataMQ = (model_name) => {
 const GenerateDestinationSendResponse = (model_name) => {
     const new_destination = {
         "@version": "4.3.0",
-        "metaDataId": 6,
+        "metaDataId": 7,
         "name": "Send Response",
         "properties": {
             "@class": "com.mirth.connect.connectors.js.JavaScriptDispatcherProperties",
@@ -1561,10 +1567,10 @@ const GenerateDestinationSendResponse = (model_name) => {
     return new_destination
 }
 
-const GenerateDestinationRequestPreparation = (model_name, table_name) => {
+const GenerateDestinationRequestPreparation = (table_name, model_name) => {
     const new_destination = {
         "@version": "4.3.0",
-        "metaDataId": 7,
+        "metaDataId": 4,
         "name": "Request Preparation",
         "properties": {
             "@class": "com.mirth.connect.connectors.js.JavaScriptDispatcherProperties",
@@ -1844,23 +1850,275 @@ const GenerateRequestPreparationScript = (model_name, table_name) => {
     const new_script = `// Auto Generated Request Preparation Script
 
     // Fetching the global object
-    const global_obj = JSON.parse(globalMap.get('${table_name}'))
+    const global_obj = JSON.parse(globalMap.get('${model_name}'))
 
     // Generating Unique ID
     var uuid = UUIDGenerator.getUUID();
 
     global_obj['req_id'] = uuid
-    globalMap.put('${table_name}', JSON.stringify(global_obj))
+    globalMap.put('${model_name}', JSON.stringify(global_obj))
 
     var db_req = {
-    table_name: "${model_name}",
+    table_name: "${table_name}",
     values: global_obj
     }
 
     channelMap.put('db_req', JSON.stringify(db_req))
+
+    // Fetching Preprocessed object
+    var pre_proc_obj = JSON.parse(channelMap.get('pre_proc_obj'))
+    pre_proc_obj['req_id'] = uuid
+
+    channelMap.put('pre_proc_obj', JSON.stringify(pre_proc_obj))
     `
 
     return new_script
+}
+
+const GenerateDestinationPreprocessor = (model_name) => {
+    const new_destination = {
+        "@version": "4.3.0",
+        "metaDataId": 3,
+        "name": "Preprocessor",
+        "properties": {
+            "@class": "com.mirth.connect.connectors.http.HttpDispatcherProperties",
+            "@version": "4.3.0",
+            "pluginProperties": null,
+            "destinationConnectorProperties": {
+                "@version": "4.3.0",
+                "queueEnabled": false,
+                "sendFirst": false,
+                "retryIntervalMillis": 10000,
+                "regenerateTemplate": false,
+                "retryCount": 0,
+                "rotate": false,
+                "includeFilterTransformer": false,
+                "threadCount": 1,
+                "threadAssignmentVariable": null,
+                "validateResponse": false,
+                "resourceIds": {
+                    "@class": "linked-hash-map",
+                    "entry": {
+                        "string": [
+                            "Default Resource",
+                            "[Default Resource]"
+                        ]
+                    }
+                },
+                "queueBufferSize": 1000,
+                "reattachAttachments": true
+            },
+            "host": `http://preprocessing-webservice:3000/api/preprocess/${model_name}`,
+            "useProxyServer": false,
+            "proxyAddress": null,
+            "proxyPort": null,
+            "method": "post",
+            "headers": {
+                "@class": "linked-hash-map"
+            },
+            "parameters": {
+                "@class": "linked-hash-map"
+            },
+            "useHeadersVariable": false,
+            "headersVariable": null,
+            "useParametersVariable": false,
+            "parametersVariable": null,
+            "responseXmlBody": false,
+            "responseParseMultipart": true,
+            "responseIncludeMetadata": false,
+            "responseBinaryMimeTypes": "application/.*(?<!json|xml)$|image/.*|video/.*|audio/.*",
+            "responseBinaryMimeTypesRegex": true,
+            "multipart": false,
+            "useAuthentication": false,
+            "authenticationType": "Basic",
+            "usePreemptiveAuthentication": false,
+            "username": null,
+            "password": null,
+            "content": "${pre_proc_obj}",
+            "contentType": "application/json",
+            "dataTypeBinary": false,
+            "charset": "DEFAULT_ENCODING",
+            "socketTimeout": 30000
+        },
+        "transformer": {
+            "@version": "4.3.0",
+            "elements": null,
+            "inboundTemplate": {
+                "@encoding": "base64"
+            },
+            "inboundDataType": "HL7V2",
+            "outboundDataType": "HL7V2",
+            "inboundProperties": {
+                "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties",
+                "@version": "4.3.0",
+                "serializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties",
+                    "@version": "4.3.0",
+                    "handleRepetitions": true,
+                    "handleSubcomponents": true,
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "stripNamespaces": false,
+                    "segmentDelimiter": "\\r",
+                    "convertLineBreaks": true
+                },
+                "deserializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties",
+                    "@version": "4.3.0",
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "segmentDelimiter": "\\r"
+                },
+                "batchProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties",
+                    "@version": "4.3.0",
+                    "splitType": "MSH_Segment",
+                    "batchScript": null
+                },
+                "responseGenerationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties",
+                    "@version": "4.3.0",
+                    "segmentDelimiter": "\\r",
+                    "successfulACKCode": "AA",
+                    "successfulACKMessage": null,
+                    "errorACKCode": "AE",
+                    "errorACKMessage": "An Error Occurred Processing Message.",
+                    "rejectedACKCode": "AR",
+                    "rejectedACKMessage": "Message Rejected.",
+                    "msh15ACKAccept": false,
+                    "dateFormat": "yyyyMMddHHmmss.SSS"
+                },
+                "responseValidationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties",
+                    "@version": "4.3.0",
+                    "successfulACKCode": "AA,CA",
+                    "errorACKCode": "AE,CE",
+                    "rejectedACKCode": "AR,CR",
+                    "validateMessageControlId": true,
+                    "originalMessageControlId": "Destination_Encoded",
+                    "originalIdMapVariable": null
+                }
+            },
+            "outboundProperties": {
+                "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties",
+                "@version": "4.3.0",
+                "serializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties",
+                    "@version": "4.3.0",
+                    "handleRepetitions": true,
+                    "handleSubcomponents": true,
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "stripNamespaces": false,
+                    "segmentDelimiter": "\\r",
+                    "convertLineBreaks": true
+                },
+                "deserializationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties",
+                    "@version": "4.3.0",
+                    "useStrictParser": false,
+                    "useStrictValidation": false,
+                    "segmentDelimiter": "\\r"
+                },
+                "batchProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties",
+                    "@version": "4.3.0",
+                    "splitType": "MSH_Segment",
+                    "batchScript": null
+                },
+                "responseGenerationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties",
+                    "@version": "4.3.0",
+                    "segmentDelimiter": "\\r",
+                    "successfulACKCode": "AA",
+                    "successfulACKMessage": null,
+                    "errorACKCode": "AE",
+                    "errorACKMessage": "An Error Occurred Processing Message.",
+                    "rejectedACKCode": "AR",
+                    "rejectedACKMessage": "Message Rejected.",
+                    "msh15ACKAccept": false,
+                    "dateFormat": "yyyyMMddHHmmss.SSS"
+                },
+                "responseValidationProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties",
+                    "@version": "4.3.0",
+                    "successfulACKCode": "AA,CA",
+                    "errorACKCode": "AE,CE",
+                    "rejectedACKCode": "AR,CR",
+                    "validateMessageControlId": true,
+                    "originalMessageControlId": "Destination_Encoded",
+                    "originalIdMapVariable": null
+                }
+            }
+        },
+        "responseTransformer": {
+            "@version": "4.3.0",
+            "elements": {
+                "com.mirth.connect.plugins.mapper.MapperStep": {
+                    "@version": "4.3.0",
+                    "name": "pre_proc_obj",
+                    "sequenceNumber": 0,
+                    "enabled": true,
+                    "variable": "pre_proc_obj",
+                    "mapping": "JSON.stringify(msg['proc_obj'])",
+                    "defaultValue": null,
+                    "replacements": null,
+                    "scope": "CHANNEL"
+                }
+            },
+            "inboundTemplate": {
+                "@encoding": "base64",
+                "$": "ewogICAgInByb2Nfb2JqIjogewogICAgICAgICJ1cmdfZXBpc29kaW8iOiAxMjM0NSwKICAgICAgICAiaG9yYV9hZG1pc3NhbyI6IDE2ODUzNjMyNzgsCiAgICAgICAgImNvZF92aWFfdmVyZGUiOiAxLAogICAgICAgICJjb2RfcHJvdmVuaWVuY2lhIjogMSwKICAgICAgICAiY29kX2NhdXNhIjogMSwKICAgICAgICAiY29kX2NvbmNlbGhvIjogMSwKICAgICAgICAiY29kX3ByaW9yaWRhZGUiOiAxLAogICAgICAgICJpZGFkZSI6IDMzLAogICAgICAgICJzZXhvIjogMSwKICAgICAgICAibG9zIjogNDMyMDAwLAogICAgICAgICJhZmx1ZW5jaWEiOiAxMjAKICAgIH0KfQ=="
+            },
+            "outboundTemplate": {
+                "@encoding": "base64",
+                "$": "ewogICAgInByb2Nfb2JqIjogewogICAgICAgICJ1cmdfZXBpc29kaW8iOiAxMjM0NSwKICAgICAgICAiaG9yYV9hZG1pc3NhbyI6IDE2ODUzNjMyNzgsCiAgICAgICAgImNvZF92aWFfdmVyZGUiOiAxLAogICAgICAgICJjb2RfcHJvdmVuaWVuY2lhIjogMSwKICAgICAgICAiY29kX2NhdXNhIjogMSwKICAgICAgICAiY29kX2NvbmNlbGhvIjogMSwKICAgICAgICAiY29kX3ByaW9yaWRhZGUiOiAxLAogICAgICAgICJpZGFkZSI6IDMzLAogICAgICAgICJzZXhvIjogMSwKICAgICAgICAibG9zIjogNDMyMDAwLAogICAgICAgICJhZmx1ZW5jaWEiOiAxMjAKICAgIH0KfQ=="
+            },
+            "inboundDataType": "JSON",
+            "outboundDataType": "JSON",
+            "inboundProperties": {
+                "@class": "com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties",
+                "@version": "4.3.0",
+                "batchProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.json.JSONBatchProperties",
+                    "@version": "4.3.0",
+                    "splitType": "JavaScript",
+                    "batchScript": null
+                }
+            },
+            "outboundProperties": {
+                "@class": "com.mirth.connect.plugins.datatypes.json.JSONDataTypeProperties",
+                "@version": "4.3.0",
+                "batchProperties": {
+                    "@class": "com.mirth.connect.plugins.datatypes.json.JSONBatchProperties",
+                    "@version": "4.3.0",
+                    "splitType": "JavaScript",
+                    "batchScript": null
+                }
+            }
+        },
+        "filter": {
+            "@version": "4.3.0",
+            "elements": {
+                "com.mirth.connect.plugins.rulebuilder.RuleBuilderRule": {
+                    "@version": "4.3.0",
+                    "name": "Accept message if \"$('req_obj_valid')\" equals true",
+                    "sequenceNumber": 0,
+                    "enabled": true,
+                    "field": "$('req_obj_valid')",
+                    "condition": "EQUALS",
+                    "values": {
+                        "string": true
+                    }
+                }
+            }
+        },
+        "transportName": "HTTP Sender",
+        "mode": "DESTINATION",
+        "enabled": true,
+        "waitForPrevious": true
+    }
+    return new_destination
 }
 
 
@@ -1870,5 +2128,6 @@ module.exports = {
     GenerateDestinationSendDataDB: GenerateDestinationSendDataDB,
     GenerateDestinationSendDataMQ: GenerateDestinationSendDataMQ,
     GenerateDestinationSendResponse: GenerateDestinationSendResponse,
-    GenerateDestinationRequestPreparation: GenerateDestinationRequestPreparation
+    GenerateDestinationRequestPreparation: GenerateDestinationRequestPreparation,
+    GenerateDestinationPreprocessor: GenerateDestinationPreprocessor
 }

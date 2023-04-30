@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const {GenerateDeployScript} = require('./scripts')
-const {GenerateDestinationHL7Extraction, GenerateDestinationBatchValidation, GenerateDestinationSendDataDB, GenerateDestinationSendDataMQ, GenerateDestinationSendResponse, GenerateDestinationRequestPreparation} = require('./destinations')
+const {GenerateDestinationHL7Extraction, GenerateDestinationBatchValidation, GenerateDestinationSendDataDB, GenerateDestinationSendDataMQ, GenerateDestinationSendResponse, GenerateDestinationRequestPreparation, GenerateDestinationPreprocessor} = require('./destinations')
 
 
 const GenerateChannel = (channel_name, channel_port, mappings, model_name) => {
@@ -14,6 +14,7 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name) => {
     const SendDataMQDestination = GenerateDestinationSendDataMQ(model_name)
     const SendResponseDestination = GenerateDestinationSendResponse(model_name)
     const RequestPreparationDestination = GenerateDestinationRequestPreparation(table_name, model_name)
+    const PreprocessorDestination = GenerateDestinationPreprocessor(table_name)
     const channel_data = JSON.stringify(
         {
             "channel": {
@@ -43,7 +44,7 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name) => {
                         },
                         "sourceConnectorProperties": {
                             "@version": "4.3.0",
-                            "responseVariable": "d6",
+                            "responseVariable": "d7",
                             "respondAfterProcessing": true,
                             "processBatch": true,
                             "firstResponse": false,
@@ -204,10 +205,12 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name) => {
                     "connector": [
                         HL7Destination,
                         BatchValidationDestination,
+                        PreprocessorDestination,
                         RequestPreparationDestination,
                         SendDataDBDestination,
                         SendDataMQDestination,
                         SendResponseDestination
+                        
                     ]
                 },
                 "preprocessingScript": "return message;",
