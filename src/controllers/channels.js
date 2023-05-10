@@ -207,7 +207,7 @@ const DeleteChannel = async (req, res) => {
 }
 
 const CreateChannel = async (req, res) => {
-    const { channel_name, channel_port, mappings, model_name } = req.body
+    const { channel_name, channel_port, mappings, model_name, preprocessor } = req.body
 
     // Creating the Channel in Mirth
     const headers = {
@@ -219,7 +219,7 @@ const CreateChannel = async (req, res) => {
 
 
     // Generating the Channel
-    const data = GenerateChannel(channel_name, channel_port, mappings, model_name)
+    const data = GenerateChannel(channel_name, channel_port, mappings, model_name, preprocessor)
 
     const config = {
         method: 'post',

@@ -3,7 +3,7 @@ const {GenerateDeployScript} = require('./scripts')
 const {GenerateDestinationHL7Extraction, GenerateDestinationBatchValidation, GenerateDestinationSendDataDB, GenerateDestinationSendDataMQ, GenerateDestinationSendResponse, GenerateDestinationRequestPreparation, GenerateDestinationPreprocessor} = require('./destinations')
 
 
-const GenerateChannel = (channel_name, channel_port, mappings, model_name) => {
+const GenerateChannel = (channel_name, channel_port, mappings, model_name, preprocessor) => {
     const uniqueId = uuidv4();
 
     const table_name = model_name
@@ -14,7 +14,7 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name) => {
     const SendDataMQDestination = GenerateDestinationSendDataMQ(model_name)
     const SendResponseDestination = GenerateDestinationSendResponse(model_name)
     const RequestPreparationDestination = GenerateDestinationRequestPreparation(table_name, model_name)
-    const PreprocessorDestination = GenerateDestinationPreprocessor(table_name)
+    const PreprocessorDestination = GenerateDestinationPreprocessor(preprocessor)
     const channel_data = JSON.stringify(
         {
             "channel": {

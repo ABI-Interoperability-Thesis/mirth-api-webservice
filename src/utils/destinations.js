@@ -1858,24 +1858,28 @@ const GenerateRequestPreparationScript = (model_name, table_name) => {
     global_obj['req_id'] = uuid
     globalMap.put('${model_name}', JSON.stringify(global_obj))
 
-    var db_req = {
-    table_name: "${table_name}",
-    values: global_obj
-    }
-
-    channelMap.put('db_req', JSON.stringify(db_req))
+    var client_id = sourceMap.get('headers').getHeader('Client-ID')
 
     // Fetching Preprocessed object
     var pre_proc_obj = JSON.parse(channelMap.get('pre_proc_obj'))
     pre_proc_obj['req_id'] = uuid
 
     channelMap.put('pre_proc_obj', JSON.stringify(pre_proc_obj))
+
+    var db_req = {
+        table_name: "${table_name}",
+        client_id: client_id,
+        values: global_obj,
+        values_pre_proc: pre_proc_obj
+        }
+    
+        channelMap.put('db_req', JSON.stringify(db_req))
     `
 
     return new_script
 }
 
-const GenerateDestinationPreprocessor = (model_name) => {
+const GenerateDestinationPreprocessor = (preprocessor) => {
     const new_destination = {
         "@version": "4.3.0",
         "metaDataId": 3,
@@ -1908,7 +1912,7 @@ const GenerateDestinationPreprocessor = (model_name) => {
                 "queueBufferSize": 1000,
                 "reattachAttachments": true
             },
-            "host": `http://preprocessing-webservice:3000/api/preprocess/${model_name}`,
+            "host": `http://preprocessing-webservice:3000/api/preprocess/${preprocessor}`,
             "useProxyServer": false,
             "proxyAddress": null,
             "proxyPort": null,
