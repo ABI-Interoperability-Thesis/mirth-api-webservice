@@ -27,42 +27,46 @@ const GetAllChannels = async (req, res) => {
     };
 
     const axios_response = await axios(config)
-    const mirth_data = Array.isArray(axios_response.data.map.entry) ? axios_response.data.map.entry : [axios_response.data.map.entry]
-
-    let final_channel_info = []
-    for (let i = 0; i < mirth_data.length; i++) {
-        const channel_id = mirth_data[i]['string'][0];
-
-        config = {
-            method: 'get',
-            url: `${endpoint}/api/channels/${channel_id}`,
-            headers: {
-                'X-Requested-With': 'OpenAPI',
-                'Accept': 'application/json',
-                'Authorization': auth_token,
-            },
-            httpsAgent: agent
-        };
-
-        const axios_channel_response = await axios(config)
-        const channel_info = axios_channel_response.data.channel
-
-        const port = channel_info['sourceConnector']['properties']['listenerConnectorProperties'] ? channel_info['sourceConnector']['properties']['listenerConnectorProperties']['port'] : '-'
-
-        final_channel_info.push({
-            version: channel_info['@version'],
-            id: channel_id,
-            name: channel_info['name'],
-            description: channel_info['description'],
-            channel_mode: channel_info['properties']['messageStorageMode'],
-            revision: channel_info['revision'],
-            type: channel_info['sourceConnector']['transportName'],
-            port: port
-
-        })
+    console.log(axios_response.data)
+    let mirth_data = []
+    if (axios_response.data.map !== null) {
+        mirth_data = Array.isArray(axios_response.data.map.entry) ? axios_response.data.map.entry : [axios_response.data.map.entry]
     }
 
+    let final_channel_info = []
+    if (mirth_data.length > 0) {
+        for (let i = 0; i < mirth_data.length; i++) {
+            const channel_id = mirth_data[i]['string'][0];
 
+            config = {
+                method: 'get',
+                url: `${endpoint}/api/channels/${channel_id}`,
+                headers: {
+                    'X-Requested-With': 'OpenAPI',
+                    'Accept': 'application/json',
+                    'Authorization': auth_token,
+                },
+                httpsAgent: agent
+            };
+
+            const axios_channel_response = await axios(config)
+            const channel_info = axios_channel_response.data.channel
+
+            const port = channel_info['sourceConnector']['properties']['listenerConnectorProperties'] ? channel_info['sourceConnector']['properties']['listenerConnectorProperties']['port'] : '-'
+
+            final_channel_info.push({
+                version: channel_info['@version'],
+                id: channel_id,
+                name: channel_info['name'],
+                description: channel_info['description'],
+                channel_mode: channel_info['properties']['messageStorageMode'],
+                revision: channel_info['revision'],
+                type: channel_info['sourceConnector']['transportName'],
+                port: port
+
+            })
+        }
+    }
 
     return res.send(final_channel_info)
 }
@@ -207,7 +211,7 @@ const DeleteChannel = async (req, res) => {
 }
 
 const CreateChannel = async (req, res) => {
-    const { channel_name, channel_port, mappings, model_name, preprocessor } = req.body
+    const { channel_name, channel_description, channel_port, mappings, model_name, preprocessor } = req.body
 
     // Creating the Channel in Mirth
     const headers = {
@@ -219,7 +223,7 @@ const CreateChannel = async (req, res) => {
 
 
     // Generating the Channel
-    const data = GenerateChannel(channel_name, channel_port, mappings, model_name, preprocessor)
+    const data = GenerateChannel(channel_name, channel_description, channel_port, mappings, model_name, preprocessor)
 
     const config = {
         method: 'post',

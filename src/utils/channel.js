@@ -1,13 +1,14 @@
 const { v4: uuidv4 } = require('uuid');
-const {GenerateDeployScript} = require('./scripts')
-const {GenerateDestinationHL7Extraction, GenerateDestinationBatchValidation, GenerateDestinationSendDataDB, GenerateDestinationSendDataMQ, GenerateDestinationSendResponse, GenerateDestinationRequestPreparation, GenerateDestinationPreprocessor} = require('./destinations')
+const { GenerateDeployScript } = require('./scripts')
+const { GenerateDestinationHL7Extraction, GenerateDestinationBatchValidation, GenerateDestinationSendDataDB, GenerateDestinationSendDataMQ, GenerateDestinationSendResponse, GenerateDestinationRequestPreparation, GenerateDestinationPreprocessor, GenerateDestinationFetchClientMappings } = require('./destinations')
 
 
-const GenerateChannel = (channel_name, channel_port, mappings, model_name, preprocessor) => {
+const GenerateChannel = (channel_name, channel_description, channel_port, mappings, model_name, preprocessor) => {
     const uniqueId = uuidv4();
 
     const table_name = model_name
     model_name = `${model_name}_global`
+    const FetchClientMappings = GenerateDestinationFetchClientMappings(table_name)
     const HL7Destination = GenerateDestinationHL7Extraction(mappings, model_name)
     const BatchValidationDestination = GenerateDestinationBatchValidation(mappings, model_name)
     const SendDataDBDestination = GenerateDestinationSendDataDB(mappings, model_name, table_name)
@@ -22,7 +23,7 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name, prepr
                 "id": uniqueId,
                 "nextMetaDataId": 7,
                 "name": channel_name,
-                "description": null,
+                "description": channel_description,
                 "revision": 87,
                 "sourceConnector": {
                     "@version": "4.3.0",
@@ -44,7 +45,7 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name, prepr
                         },
                         "sourceConnectorProperties": {
                             "@version": "4.3.0",
-                            "responseVariable": "d7",
+                            "responseVariable": "d8",
                             "respondAfterProcessing": true,
                             "processBatch": true,
                             "firstResponse": false,
@@ -203,6 +204,7 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name, prepr
                 },
                 "destinationConnectors": {
                     "connector": [
+                        FetchClientMappings,
                         HL7Destination,
                         BatchValidationDestination,
                         PreprocessorDestination,
@@ -210,7 +212,7 @@ const GenerateChannel = (channel_name, channel_port, mappings, model_name, prepr
                         SendDataDBDestination,
                         SendDataMQDestination,
                         SendResponseDestination
-                        
+
                     ]
                 },
                 "preprocessingScript": "return message;",
