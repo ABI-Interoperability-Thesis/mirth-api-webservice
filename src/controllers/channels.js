@@ -3,6 +3,7 @@ const https = require('https')
 const token_utils = require('../config/token')
 const endpoints = require('../config/endpoints.json')
 const { GenerateChannel } = require('../utils/channel')
+const { GenerateChannelData } = require('../utils/mirth')
 require('dotenv').config();
 
 //disable ssl
@@ -11,7 +12,8 @@ const agent = new https.Agent({
 })
 
 const auth_token = token_utils.GenerateToken()
-const endpoint = endpoints['mirth'][process.env.ENV]
+const endpoint = process.env.MIRTH_ENDPOINT
+const mysql_endpoint = endpoints['mysql_ws'][process.env.ENV]
 
 
 const GetAllChannels = async (req, res) => {
@@ -245,6 +247,192 @@ const CreateChannel = async (req, res) => {
     }
 }
 
+const CreateGeneralChannel = async (req, res) => {
+    const { channel_type, channel_name, channel_description, channel_port } = req.body
+
+    // Creating the Channel in Mirth
+    const headers = {
+        'X-Requested-With': 'OpenAPI',
+        'Accept': 'application/json',
+        "Authorization": auth_token,
+        'Content-Type': 'application/json'
+    };
+
+
+    // Generating the Channel
+    const data = await GenerateChannelData(channel_type, channel_name, channel_description, channel_port)
+    const channel_id = JSON.parse(data).channel.id
+
+    const config = {
+        method: 'post',
+        url: `${endpoint}/api/channels`,
+        headers: headers,
+        httpsAgent: agent,
+        data: data
+    }
+
+    const config_mysql = {
+        method: 'post',
+        url: `${mysql_endpoint}/api/mirth-channels`,
+        headers: headers,
+        httpsAgent: agent,
+        data: {
+            channel_name: channel_type,
+            channel_id
+        }
+    }
+
+    try {
+        const axios_response = await axios(config)
+        const axios_response_mysql = await axios(config_mysql)
+        return res.send({
+            mirth_response: axios_response.data,
+            mysql_response: axios_response_mysql.data
+        })
+    } catch (error) {
+        return res.send({
+            status: '500',
+            message: 'There was an error',
+            error
+        })
+    }
+}
+
+const GetChannelInfo = async (req, res) => {
+    const channel_id = req.params.channel_id
+
+    const config = {
+        method: 'get',
+        url: `${endpoint}/api/channels/${channel_id}/`,
+        headers: {
+            'X-Requested-With': 'OpenAPI',
+            'Authorization': 'Basic YWRtaW46MTIz',
+            'Cookie': 'JSESSIONID=node01x1doyxqiig2f1unz3hxkfbrly3.node0'
+        },
+        httpsAgent: agent,
+    };
+
+    try {
+        const axios_response = await axios(config)
+        const mirth_response = axios_response.data
+        if (!mirth_response) return res.status(404).send({ message: 'Channel not found' })
+        const ChannelInfo = ExtractInfo(mirth_response.channel)
+        return res.send(ChannelInfo)
+    } catch (error) {
+        return res.send({
+            status: '500',
+            message: 'There was an error',
+            error
+        })
+    }
+
+}
+
+const ExtractInfo = (channel) => {
+    return {
+        channel_id: channel.id,
+        channel_name: channel.name,
+        channel_description: channel.description,
+        revision: channel.revision,
+        version: channel.sourceConnector['@version'],
+        port: channel.sourceConnector.properties.listenerConnectorProperties.port
+    }
+}
+
+const GetChannel = async (req, res) => {
+    const channel_id = req.params.channel_id
+
+    const config = {
+        method: 'get',
+        url: `${endpoint}/api/channels/${channel_id}/`,
+        headers: {
+            'X-Requested-With': 'OpenAPI',
+            'Authorization': 'Basic YWRtaW46MTIz',
+            'Cookie': 'JSESSIONID=node01x1doyxqiig2f1unz3hxkfbrly3.node0'
+        },
+        httpsAgent: agent,
+    };
+
+    try {
+        const axios_response = await axios(config)
+        const mirth_response = axios_response.data
+        if (!mirth_response) return res.status(404).send({ message: 'Channel not found' })
+        return res.send(mirth_response.channel)
+    } catch (error) {
+        return res.send({
+            status: '500',
+            message: 'There was an error',
+            error
+        })
+    }
+
+}
+
+const GetChannelPort = async (req, res) => {
+    const channel_id = req.params.channel_id
+
+    const config = {
+        method: 'get',
+        url: `${endpoint}/api/channels/${channel_id}/`,
+        headers: {
+            'X-Requested-With': 'OpenAPI',
+            'Authorization': 'Basic YWRtaW46MTIz',
+            'Cookie': 'JSESSIONID=node01x1doyxqiig2f1unz3hxkfbrly3.node0'
+        },
+        httpsAgent: agent,
+    };
+
+    try {
+        const axios_response = await axios(config)
+        const mirth_response = axios_response.data
+        if (!mirth_response) return res.status(404).send({ message: 'Channel not found' })
+        return res.send({
+            channel_port: mirth_response.channel.sourceConnector.properties.listenerConnectorProperties.port
+        })
+    } catch (error) {
+        return res.send({
+            status: '500',
+            message: 'There was an error',
+            error
+        })
+    }
+
+}
+
+const AboutSystem = async (req, res) => {
+    // Creating the Channel in Mirth
+    const headers = {
+        'X-Requested-With': 'OpenAPI',
+        'Accept': 'application/json',
+        "Authorization": auth_token,
+    };
+
+    const config = {
+        method: 'get',
+        url: `${endpoint}/api/system/info`,
+        headers,
+        httpsAgent: agent
+    };
+
+    const config_stats = {
+        method: 'get',
+        url: `${endpoint}/api/system/stats`,
+        headers,
+        httpsAgent: agent
+    };
+
+    const axios_response = await axios(config)
+    const system_info = axios_response.data
+
+    const axios_response_stats = await axios(config_stats)
+    const system_stats = axios_response_stats.data
+
+    return res.send({
+        system_info,
+        system_stats
+    })
+}
+
 module.exports = {
     GetAllChannels: GetAllChannels,
     GetAllUsedPorts: GetAllUsedPorts,
@@ -252,5 +440,10 @@ module.exports = {
     UndeployChannel: UndeployChannel,
     DeleteChannel: DeleteChannel,
     CreateChannel: CreateChannel,
-    GetAllDeployedChannels: GetAllDeployedChannels
+    GetAllDeployedChannels: GetAllDeployedChannels,
+    CreateGeneralChannel: CreateGeneralChannel,
+    GetChannelInfo: GetChannelInfo,
+    GetChannel: GetChannel,
+    GetChannelPort: GetChannelPort,
+    AboutSystem: AboutSystem
 }
