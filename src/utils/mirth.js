@@ -2468,43 +2468,7 @@ const GenerateRunnerData = async (channel_name, channel_description, channel_por
                 },
                 "dependentIds": null,
                 "dependencyIds": null,
-                "channelTags": {
-                    "channelTag": [
-                        {
-                            "id": uuidv4(),
-                            "name": "ABI",
-                            "channelIds": {
-                                "string": [
-                                    "e8dc4c46-145b-42d6-b095-94b4b6c80674",
-                                    "a932cf7d-c48d-474e-a284-8dd9ec99d1b4",
-                                    "ff6bc99b-c4a4-462f-b249-c3bbbbe263f6"
-                                ]
-                            },
-                            "backgroundColor": {
-                                "red": 255,
-                                "green": 0,
-                                "blue": 0,
-                                "alpha": 255
-                            }
-                        },
-                        {
-                            "id": uuidv4(),
-                            "name": "Runner",
-                            "channelIds": {
-                                "string": [
-                                    "e8dc4c46-145b-42d6-b095-94b4b6c80674",
-                                    "ff6bc99b-c4a4-462f-b249-c3bbbbe263f6"
-                                ]
-                            },
-                            "backgroundColor": {
-                                "red": 128,
-                                "green": 128,
-                                "blue": 0,
-                                "alpha": 255
-                            }
-                        }
-                    ]
-                }
+                "channelTags": null
             }
         }
     })
@@ -4387,45 +4351,7 @@ const GenerateTesterData = async (channel_name, channel_description, channel_por
                 },
                 "dependentIds": null,
                 "dependencyIds": null,
-                "channelTags": {
-                    "channelTag": [
-                        {
-                            "id": uuidv4(),
-                            "name": "ABI",
-                            "channelIds": {
-                                "string": [
-                                    "a932cf7d-c48d-474e-a284-8dd9ec99d1b4",
-                                    "ff6bc99b-c4a4-462f-b249-c3bbbbe263f6",
-                                    "3c429f82-aab1-4edf-b415-76ed46acff45",
-                                    "78632fdf-bb83-4bf5-84ab-aa770630c5ba"
-                                ]
-                            },
-                            "backgroundColor": {
-                                "red": 255,
-                                "green": 0,
-                                "blue": 0,
-                                "alpha": 255
-                            }
-                        },
-                        {
-                            "id": uuidv4(),
-                            "name": "Runner",
-                            "channelIds": {
-                                "string": [
-                                    "ff6bc99b-c4a4-462f-b249-c3bbbbe263f6",
-                                    "3c429f82-aab1-4edf-b415-76ed46acff45",
-                                    "78632fdf-bb83-4bf5-84ab-aa770630c5ba"
-                                ]
-                            },
-                            "backgroundColor": {
-                                "red": 128,
-                                "green": 128,
-                                "blue": 0,
-                                "alpha": 255
-                            }
-                        }
-                    ]
-                }
+                "channelTags": null
             }
         }
     })

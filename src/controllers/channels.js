@@ -13,7 +13,7 @@ const agent = new https.Agent({
 
 const auth_token = token_utils.GenerateToken()
 const endpoint = process.env.MIRTH_ENDPOINT
-const mysql_endpoint = endpoints['mysql_ws'][process.env.ENV]
+const mysql_endpoint = process.env.MYSQL_SERVICE_ENDPOINT
 
 
 const GetAllChannels = async (req, res) => {
@@ -128,8 +128,18 @@ const GetAllUsedPorts = async (req, res) => {
     };
 
     const axios_response = await axios(config)
-    const mirth_data = axios_response.data.list['com.mirth.connect.donkey.model.channel.Ports']
-    return res.send(mirth_data)
+
+    if (axios_response.data.list !== null) {
+        let responseData = axios_response.data.list['com.mirth.connect.donkey.model.channel.Ports'];
+
+        if (!Array.isArray(responseData)) {
+            responseData = [responseData]; // Convert single object to an array
+        }
+
+        return res.send(responseData);
+    } else {
+        return res.send([]);
+    }
 }
 
 const DeployChannel = async (req, res) => {
@@ -306,8 +316,8 @@ const GetChannelInfo = async (req, res) => {
         url: `${endpoint}/api/channels/${channel_id}/`,
         headers: {
             'X-Requested-With': 'OpenAPI',
-            'Authorization': 'Basic YWRtaW46MTIz',
-            'Cookie': 'JSESSIONID=node01x1doyxqiig2f1unz3hxkfbrly3.node0'
+            'Accept': 'application/json',
+            'Authorization': auth_token,
         },
         httpsAgent: agent,
     };
@@ -347,8 +357,8 @@ const GetChannel = async (req, res) => {
         url: `${endpoint}/api/channels/${channel_id}/`,
         headers: {
             'X-Requested-With': 'OpenAPI',
-            'Authorization': 'Basic YWRtaW46MTIz',
-            'Cookie': 'JSESSIONID=node01x1doyxqiig2f1unz3hxkfbrly3.node0'
+            'Accept': 'application/json',
+            'Authorization': auth_token,
         },
         httpsAgent: agent,
     };
@@ -376,8 +386,8 @@ const GetChannelPort = async (req, res) => {
         url: `${endpoint}/api/channels/${channel_id}/`,
         headers: {
             'X-Requested-With': 'OpenAPI',
-            'Authorization': 'Basic YWRtaW46MTIz',
-            'Cookie': 'JSESSIONID=node01x1doyxqiig2f1unz3hxkfbrly3.node0'
+            'Accept': 'application/json',
+            'Authorization': auth_token,
         },
         httpsAgent: agent,
     };
