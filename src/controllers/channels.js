@@ -3,7 +3,7 @@ const https = require('https')
 const token_utils = require('../config/token')
 const endpoints = require('../config/endpoints.json')
 const { GenerateChannel } = require('../utils/channel')
-const { GenerateChannelData } = require('../utils/mirth')
+const { GenerateChannelData, GenerateHL7MapperChannelData  } = require('../utils/mirth')
 require('dotenv').config();
 
 //disable ssl
@@ -65,7 +65,6 @@ const GetAllChannels = async (req, res) => {
                 revision: channel_info['revision'],
                 type: channel_info['sourceConnector']['transportName'],
                 port: port
-
             })
         }
     }
@@ -363,11 +362,60 @@ const GetChannel = async (req, res) => {
         httpsAgent: agent,
     };
 
+    const config_statistics = {
+        method: 'get',
+        url: `${endpoint}/api/channels/${channel_id}/statistics`,
+        headers: {
+            'X-Requested-With': 'OpenAPI',
+            'Accept': 'application/json',
+            'Authorization': auth_token,
+        },
+        httpsAgent: agent
+    }
+
+    const config_status = {
+        method: 'get',
+        url: `${endpoint}/api/channels/${channel_id}/status`,
+        headers: {
+            'X-Requested-With': 'OpenAPI',
+            'Accept': 'application/json',
+            'Authorization': auth_token,
+        },
+        httpsAgent: agent
+    }
+
     try {
         const axios_response = await axios(config)
         const mirth_response = axios_response.data
+
+        const axios_response_statistics = await axios(config_statistics)
+        const mirth_response_statistics = axios_response_statistics.data
+
+        let mirth_response_status
+        let channel_deployed
+        try {
+            const axios_response_status = await axios(config_status)
+            mirth_response_status = axios_response_status.data
+            channel_deployed = true
+        } catch (error) {
+            mirth_response_status = 'undeployed'
+            channel_deployed = false
+        }
+
         if (!mirth_response) return res.status(404).send({ message: 'Channel not found' })
-        return res.send(mirth_response.channel)
+        if (!mirth_response_statistics) return res.status(404).send({ message: 'Channel not found' })
+
+        const status = mirth_response_status.dashboardStatus
+
+        const channel_data = {
+            ...mirth_response.channel,
+            channel_statistics: mirth_response_statistics.channelStatistics,
+            channel_deployed
+        }
+
+        if (channel_deployed) channel_data['channel_status'] = status
+        return res.send(channel_data)
+
     } catch (error) {
         return res.send({
             status: '500',
@@ -443,6 +491,56 @@ const AboutSystem = async (req, res) => {
     })
 }
 
+const CreateHL7Mapper = async (req,res) => {
+    const channel_port = req.body.channel_port
+    // Creating the Channel in Mirth
+    const headers = {
+        'X-Requested-With': 'OpenAPI',
+        'Accept': 'application/json',
+        "Authorization": auth_token,
+        'Content-Type': 'application/json'
+    };
+
+
+    // Generating the Channel
+    const data = await GenerateHL7MapperChannelData(channel_port)
+    const channel_id = JSON.parse(data).channel.id
+
+    const config = {
+        method: 'post',
+        url: `${endpoint}/api/channels`,
+        headers: headers,
+        httpsAgent: agent,
+        data: data
+    }
+
+    const config_mysql = {
+        method: 'post',
+        url: `${mysql_endpoint}/api/mirth-channels`,
+        headers: headers,
+        httpsAgent: agent,
+        data: {
+            channel_name: "hl7-mapper",
+            channel_id
+        }
+    }
+
+    try {
+        const axios_response = await axios(config)
+        const axios_response_mysql = await axios(config_mysql)
+        return res.send({
+            mirth_response: axios_response.data,
+            mysql_response: axios_response_mysql.data
+        })
+    } catch (error) {
+        return res.send({
+            status: '500',
+            message: 'There was an error',
+            error
+        })
+    }
+}
+
 module.exports = {
     GetAllChannels: GetAllChannels,
     GetAllUsedPorts: GetAllUsedPorts,
@@ -455,5 +553,6 @@ module.exports = {
     GetChannelInfo: GetChannelInfo,
     GetChannel: GetChannel,
     GetChannelPort: GetChannelPort,
-    AboutSystem: AboutSystem
+    AboutSystem: AboutSystem,
+    CreateHL7Mapper: CreateHL7Mapper
 }
